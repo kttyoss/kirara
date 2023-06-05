@@ -1,0 +1,55 @@
+package main
+
+import (
+	"sync"
+
+	"github.com/gofiber/websocket/v2"
+)
+
+type Kclient struct {
+	identifier string
+	registered bool
+	isClosing  bool
+	mu         sync.Mutex
+}
+
+type Kmessage struct {
+	connection *websocket.Conn
+	message    []byte
+}
+
+var clients = make(map[*websocket.Conn]*Kclient)
+var register = make(chan *websocket.Conn)
+var unregister = make(chan *websocket.Conn)
+var broadcast = make(chan *Kmessage)
+
+func runHub() {
+	for {
+		select {
+		case c := <-register:
+			clients[c] = &Kclient{identifier: "UNIDENT", registered: false}
+		case c := <-unregister:
+			delete(clients, c)
+		case m := <-broadcast:
+			if !clients[m.connection].registered {
+				m.connection.WriteMessage(websocket.TextMessage, []byte(`{"event": "error", "message": "Your node isn't registered. Please send a registration packet before sending any data.", "code": "ERR_NOT_REGISTERED"}`))
+			}
+			for conn, c := range clients {
+				go func(conn *websocket.Conn, c *Kclient) {
+					c.mu.Lock()
+					defer c.mu.Unlock()
+					if c.isClosing || !c.registered {
+						return
+					}
+					if err := conn.WriteMessage(websocket.TextMessage, m.message); err != nil {
+						c.isClosing = true
+
+						conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "internal server error"))
+						conn.Close()
+						unregister <- conn
+					}
+				}(conn, c)
+			}
+		}
+	}
+}

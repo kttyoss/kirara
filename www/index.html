@@ -1,0 +1,61 @@
+<h1>Kirara (Development Build)</h1>
+
+<h2>connect</h2>
+<button onclick="connect()">Connect</button>
+<button onclick="disconnect()">Disconnect</button>
+
+<h2>register node</h2>
+<input type="text" id="nodeId" placeholder="node id">
+<button onclick="registerNode()">Register</button>
+
+<h2>enter data (JSON)</h2>
+<textarea type="text" id="data" placeholder="data" rows="5" cols="50">
+    {"event": "data", "data": {
+        "user": "abcd1234"
+        "node": "h1"
+        "message": "hello!"
+    }}
+</textarea>
+<button onclick="enterData()">Enter</button>
+
+<h3>response log</h3>
+<textarea id="responseLog" rows="5" cols="50"></textarea>
+
+<script>
+    var ws = new WebSocket('ws://127.0.0.1:8090/ws');
+    var nodeId;
+    ws.onopen = function() {
+        console.log("connected");
+    };
+    ws.onmessage = function (evt) {
+        console.log(evt.data);
+        document.getElementById("responseLog").value += evt.data + "\n";
+    };
+    ws.onclose = function() {
+        console.log("disconnected");
+    };
+
+    function disconnect() {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onclose = null;
+        ws.close();
+    }
+
+    function registerNode() {
+        nodeId = document.getElementById("nodeId").value;
+        ws.send(JSON.stringify({
+            "event": "register",
+            "identifier": nodeId
+        }));
+    }
+
+    function enterData() {
+        var data = document.getElementById("data").value;
+        ws.send(JSON.stringify({
+            "event": "data",
+            "data": data
+        }));
+    }
+
+</script>
