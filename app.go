@@ -57,9 +57,35 @@ func main() {
 				}
 				return
 			}
-			log.Printf("from %s, message: %s", c.RemoteAddr().String(), message)
 			if messageType == websocket.TextMessage {
-				broadcast <- &Kmessage{connection: c, message: message}
+				log.Printf("from %s, message: %s", c.RemoteAddr().String(), message)
+				var jsonData map[string]interface{}
+				if err := json.Unmarshal(message, &jsonData); err != nil {
+					log.Printf("error: %v", err)
+					c.WriteMessage(websocket.TextMessage, []byte(`{"event": "error", "message": "sent invalid json", "success": false}`))
+					continue
+				}
+				if jsonData["event"] == nil {
+					c.WriteMessage(websocket.TextMessage, []byte(`{"event": "error", "message": "sent invalid json", "success": false}`))
+					continue
+				}
+				if jsonData["event"] == "register" {
+					if jsonData["identifier"] != nil {
+						setIdentifier(c, jsonData["identifier"].(string))
+						c.WriteMessage(websocket.TextMessage, []byte(`{"event": "registered", "message": "registered successfully. send data (using the event 'data') to broadcast it to all connected clients.", "success": true}`))
+						continue
+					} else {
+						c.WriteMessage(websocket.TextMessage, []byte(`{"event": "error", "message": "sent invalid json", "success": false}`))
+						continue
+					}
+				}
+				if jsonData["event"] == "data" {
+					if jsonData["data"] != nil {
+						broadcast <- &Kmessage{connection: c, message: jsonData["data"]}
+						c.WriteMessage(websocket.TextMessage, []byte(`{"event": "data", "message": "data sent successfully", "success": true}`))
+						continue
+					}
+				}
 			} else {
 				log.Printf("unhandled message type: %v", messageType)
 			}

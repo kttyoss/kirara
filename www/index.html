@@ -9,20 +9,21 @@
 <button onclick="registerNode()">Register</button>
 
 <h2>enter data (JSON)</h2>
-<textarea type="text" id="data" placeholder="data" rows="5" cols="50">
-    {"event": "data", "data": {
-        "user": "abcd1234"
-        "node": "h1"
-        "message": "hello!"
-    }}
+<textarea type="text" id="data" placeholder="data" rows="10" cols="75">
+{
+    "user": "abcd1234",
+    "node": "NODE1",
+    "message": "hello!"
+}
 </textarea>
 <button onclick="enterData()">Enter</button>
 
 <h3>response log</h3>
-<textarea id="responseLog" rows="5" cols="50"></textarea>
+<textarea id="responseLog" rows="10" cols="75"></textarea>
 
 <script>
     var ws = new WebSocket('ws://127.0.0.1:8090/ws');
+    document.getElementById("responseLog").value = "";
     var nodeId;
     ws.onopen = function() {
         console.log("connected");
@@ -54,7 +55,7 @@
         var data = document.getElementById("data").value;
         ws.send(JSON.stringify({
             "event": "data",
-            "data": data
+            "data": JSON.parse(data)
         }));
     }
 
